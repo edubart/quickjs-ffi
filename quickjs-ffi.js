@@ -30,7 +30,6 @@ function dlOpen(filename) {
     if (dlCache.hasOwnProperty(filename)) {
         return dlCache[filename];
     }
-    // console.log(filename);
     let h = ffi.dlopen(filename, ffi.RTLD_NOW);
     if (h === 0) {
         throw new TypeError(ffi.dlerror());
@@ -45,7 +44,6 @@ function dlSym(filename, symbol) {
     if (file.symbols.hasOwnProperty(symbol)) {
         return file.symbols[symbol];
     }
-    // console.log(filename, symbol);
     let pointer = ffi.dlsym(file.handle, symbol);
     if (pointer === 0) {
         throw new TypeError(ffi.dlerror());
@@ -74,37 +72,6 @@ const rfloat = isdouble =>
 
 const wfloat = isdouble =>
     (ptr, val) => ffi.memwritefloat(ptr, isdouble ? 8 : 4, 0, isdouble, val);
-
-// const primitiveTypes = { // [ffi_type address, byte width, read function, write function]
-//     'void': [ffi.ffi_type_void, 0, dummy, dummy],
-//     'uint8_t': [ffi.ffi_type_uint8, 1, rint(false, 1), wint(1)],
-//     'int8_t': [ffi.ffi_type_sint8, 1, rint(true, 1), wint(1)],
-//     'uint16_t': [ffi.ffi_type_uint16, 2, rint(false, 2), wint(2)],
-//     'int16_t': [ffi.ffi_type_sint16, 2, rint(true, 2), wint(2)],
-//     'uint32_t': [ffi.ffi_type_uint32, 4, rint(false, 4), wint(4)],
-//     'int32_t': [ffi.ffi_type_sint32, 4, rint(true, 4), wint(4)],
-//     'uint64_t': [ffi.ffi_type_uint64, 8, rint(false, 8), wint(8)],
-//     'int64_t': [ffi.ffi_type_sint64, 8, rint(true, 8), wint(8)],
-//     'float': [ffi.ffi_type_float, 4, rfloat(false), wfloat(false)],
-//     'double': [ffi.ffi_type_double, 8, rfloat(true), wfloat(true)],
-//     'pointer': [ffi.ffi_type_pointer, ffi.sizeof_uintptr_t, rint(false, ffi.sizeof_uintptr_t), wint(ffi.sizeof_uintptr_t)],
-//     'longdouble': [ffi.ffi_type_longdouble, 8, rfloat(true), wfloat(true)],
-//     'complex_float': [ffi.ffi_type_complex_float, undefined, undefined, undefined],
-//     'complex_double': [ffi.ffi_type_complex_double, undefined, undefined, undefined],
-//     'complex_longdouble': [ffi.ffi_type_complex_longdouble, undefined, undefined, undefined],
-//     'uchar': [ffi.ffi_type_uchar, 1, rint(false, 1), wint(1)],
-//     'char': [ffi.ffi_type_schar, 1, rint(true, 1), wint(1)],
-//     'ushort': [ffi.ffi_type_ushort, 2, rint(false, 2), wint(2)],
-//     'short': [ffi.ffi_type_sshort, 2, rint(true, 2), wint(2)],
-//     'uint': [ffi.ffi_type_uint, ffi.sizeof_int, rint(false, ffi.sizeof_int), wint(ffi.sizeof_int)],
-//     'int': [ffi.ffi_type_sint, ffi.sizeof_int, rint(true, ffi.sizeof_int), wint(ffi.sizeof_int)],
-//     'ulong': [ffi.ffi_type_ulong, 8, rint(false, 8), wint(8)],
-//     'long': [ffi.ffi_type_slong, 8, rint(true, 8), wint(8)],
-//     'uintptr_t': [ffi.ffi_type_uintptr_t, ffi.sizeof_uintptr_t, rint(false, ffi.sizeof_uintptr_t), wint(ffi.sizeof_uintptr_t)],
-//     'intptr_t': [ffi.ffi_type_intptr_t, ffi.sizeof_uintptr_t, rint(true, ffi.sizeof_uintptr_t), wint(ffi.sizeof_uintptr_t)],
-//     'size_t': [ffi.ffi_type_size_t, ffi.sizeof_size_t, rint(false, ffi.sizeof_size_t), wint(ffi.sizeof_size_t)],
-//     'string': [ffi.ffi_type_pointer, ffi.sizeof_uintptr_t, rint(false, ffi.sizeof_uintptr_t), wint(ffi.sizeof_uintptr_t)],
-// }
 
 const primitiveTypes = { // [ffi_type address, byte width, read function, write function]
     void: [ffi.ffi_type_void, 0, dummy, dummy],
@@ -358,7 +325,6 @@ export class CFunction {
     }
     invoke = (...args) => {
         let writeArg = (a, e, val) => {
-            // console.log(a, e, val)
             let repr = this.aereprs[a][e];
             let f = primitiveTypes[repr][3];
             let p = this.avalues[a] + this.aeoffsets[a][e];
@@ -434,8 +400,6 @@ export class CCallback {
         }
     }
     adapter = (rvalueptr, avaluesptr) => {
-        // console.log('adapter');
-        // console.log(rvalueptr, avaluesptr);
         let args = [];
         for (let a = 0; a < this.aereprs.length; a++) {
             let ereprs = this.aereprs[a];
@@ -452,30 +416,22 @@ export class CCallback {
                 let repr = ereprs[0];
                 let f = primitiveTypes[repr][2];
                 let p = readUintptrArray(avaluesptr, a);
-                // console.log(repr, f, p, f(p));
                 args[a] = repr == 'string' ? ffi.newstring(f(p)) : f(p);
             }
-            // console.log(a, args[a])
         }
         let ret = this.jsfunc(...args);
-        // console.log(ret)
         this.cstr.free(); // free previous call
-        // console.log(this.rereprs, typeof this.rereprs)
         if (this.rereprs.length > 1) {
-            // console.log('if')
             for (let e = 0; e < this.rereprs.length; e++) {
                 let repr = this.rereprs[e];
                 let f = primitiveTypes[repr][3];
                 let p = rvalueptr + this.reoffsets[e];
-                // console.log(repr, f, p);
                 repr == 'string' ? f(p, this.cstr.to(ret[e])) : f(p, ret[e]);
             }
         } else {
-            // console.log('else')
             let repr = this.rereprs[0];
             let f = primitiveTypes[repr][3];
             let p = rvalueptr;
-            // console.log(repr, f, p);
             repr == 'string' ? f(p, this.cstr.to(ret)) : f(p, ret);
         }
     }
