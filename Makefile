@@ -1,15 +1,15 @@
-ffi: quickjs-ffi.c test-lib.c
-	gcc quickjs-ffi.c -o quickjs-ffi.so -ldl -lffi -shared -fPIC
-	gcc test-lib.c -o test-lib.so -shared -fPIC
+CC=gcc
+CFLAGS+=-fno-strict-aliasing -fno-strict-overflow -fPIC
+LDFLAGS=-lffi -ldl
+SO_LDFLAGS=-shared
+
+all: quickjs-ffi.so test-lib.so
+
+test: quickjs-ffi.so test-lib.so
 	qjs test.js
 
-test1: test1.c
-	gcc test1.c -o test1 -lffi -ldl -fPIC
-	./test1
+%.so: %.c
+	$(CC) $< -o $@ $(CFLAGS) -shared $(LDFLAGS)
 
-fib: fib.c
-	gcc fib.c -o fib.so -shared -fPIC
-
-null: null.c
-	gcc null.c -o null1
-	gcc null.c -o null2 -fPIC
+clean:
+	rm -f *.so
